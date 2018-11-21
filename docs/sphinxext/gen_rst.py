@@ -94,6 +94,8 @@ except:
 import matplotlib
 matplotlib.use('Agg')
 
+import ROOT
+ROOT.gROOT.SetBatch(True)
 import token
 import tokenize
 import numpy as np
@@ -412,7 +414,7 @@ HLIST_IMAGE_TEMPLATE = """
     *
 
       .. image:: images/%s
-            :scale: 47
+            :scale: 50
 """
 
 SINGLE_IMAGE = """
@@ -461,7 +463,10 @@ def extract_docstring(filename, ignore_heading=False):
                     first_par = paragraphs[0]
 
         break
-    return docstring, first_par, erow + 1 + start_row
+    end_row = erow + 1 + start_row
+    if lines and lines[end_row - 2] == 'print __doc__\n':
+        end_row += 1
+    return docstring, first_par, end_row
 
 
 def generate_example_rst(app):
@@ -469,7 +474,7 @@ def generate_example_rst(app):
         examples.
     """
     root_dir = os.path.join(app.builder.srcdir, 'auto_examples')
-    example_dir = os.path.abspath(app.builder.srcdir + '/../../' + 'examples')
+    example_dir = os.path.abspath(app.builder.srcdir + '/../' + 'examples')
     try:
         plot_gallery = eval(app.builder.config.plot_gallery)
     except TypeError:
@@ -489,6 +494,10 @@ def generate_example_rst(app):
 
 
     <style type="text/css">
+    
+    div#sidebarbutton {
+        display: none;
+    }
 
     .figure {
         float: left;
@@ -499,8 +508,8 @@ def generate_example_rst(app):
         border: 2px solid #fff;
         background-color: white;
         /* --> Thumbnail image size */
-        width: 150px;
-        height: 100px;
+        width: 180px;
+        height: 200px;
         -webkit-background-size: 150px 100px; /* Saf3-4 */
         -moz-background-size: 150px 100px; /* FF3.6 */
     }
@@ -516,6 +525,11 @@ def generate_example_rst(app):
         box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.0); /* Opera 10.5, IE9, FF4+, Chrome 10+ */
         padding: 0px;
         border: white;
+    }
+    
+    .figure .caption {
+        width: 170px;
+        text-align: center !important;
     }
 
     div.docstringWrapper p {
@@ -1100,7 +1114,7 @@ def setup(app):
     #  changes their layout between versions, this will not work (though
     #  it should probably not cause a crash).  Tested successfully
     #  on Sphinx 1.0.7
-    build_image_dir = 'build/html/_images'
+    build_image_dir = '_build/html/_images'
     if os.path.exists(build_image_dir):
         filelist = os.listdir(build_image_dir)
         for filename in filelist:
