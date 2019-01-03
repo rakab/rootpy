@@ -7,12 +7,80 @@ from . import base, Hist, Profile, Graph
 
 class Compare(object):
     """
+    Compare arbitrary number of plotables to each other.
+    Performs any kind of user defined mathematical operation on arbitrary
+    groups of input plotables (Hist, Profile, Graph).
+    Currently supports only 1D objects and mathematical functions, which can be
+    calculated bin-wise, i.e. no integration or differentiation.
+    Function for the error calculation can be manually indicated as well or if
+    left empty, assuming variables are uncorrelated it will be automatically
+    calculated from main user defined function.
 
-    Compare arbitrary number of plotables
+    Parameters
+    ----------
+
+    plotables : list or dict, mandatory
+              A list or dict of input plotable objects. All of them should be
+              of the same type (1D Hist, Profile or Graph) and should have same
+              bin number and size. If list is being passed, first item will be
+              assigned to the key x0, all others - to x1 and x1/x0 will be used
+              as a comparisson function. If the user defined function is being
+              desired, pass plotables as python dict of lists, where keys have
+              a following form 'x0', 'x1', 'x2',... Later on this keys can be
+              used to define function for the comparison and/or for error
+              calculation.
+
+    func : string, optional (default=None)
+         A string defining function to use for the comparison. If list is
+         being passed as plotables, it should be left empty and default x1/x0
+         will be used, otherwise it's mandatory to indicate some function. User
+         is free to choose any kind of mathematical operation, as long as it
+         can be performed bin-wise on input plotables. To refer to some
+         particular object from the input, use keys defined in plotables dict
+         as variable names (x0,x1,x2...).
+
+    errfunc : string, optional (default=None)
+            A string defining function to use for the error calculation. If
+            left empty, assuming there is no correlation between input
+            plotables, it will be automatically calculated from func.
+            If custom function is being desired user is free to choose any kind
+            of mathematical operation, as long as it can be performed bin-wise
+            on input plotables. To refer to some particular object from the
+            input, use keys defined in plotables dict as variable names
+            (x0,x1,x2...). To access the error of some particular object use
+            the letter 'd' in front of the corresponding key name
+            (dx0,dx1,dx2...).
+
+    keytoclone: string, optional (default=None)
+              A string indicating to the object, from which the style of the
+              resulting plotable will be copied. It should be a key name
+              defined in plotables ('x0','x1','x2'...). If left empty key 'xN'
+              with highest N from plotables (N=0,1,2...) will be used by
+              default.
+
+    Returns
+    -------
+    The object to Compare class, from which various attributes and list of the
+    resulting plotable objects can be accessed.
+
+    Example
+    -------
+        result =  Compare({'x1':[h10,h11],'x2':[h20,h21,h22]}, '(x1-x2)/x1')
+
+    This will calculate:
+        (h10-h20)/h10, (h10-h21)/h10, (h10-h22)/h10, (h11-h20)/h11,
+        (h11-h21)/h11 and (h11-h22)/h11
+
+    To acces the results involving h10 in the calculation, use:
+        result[h10]
+
+    To further filter the results and get a list of objects involving h10 and
+    h21 together in the calculation, use:
+        result[h10, h21]
 
     """
 
-    def __init__(self, plotables, func=None, errfunc=None):
+    def __init__(self, plotables, func=None, errfunc=None, keytoclone=None):
         self.plotables = {}
         if not isinstance(plotables,dict):
             if not isinstance(plotables,list):
@@ -59,7 +127,7 @@ class Compare(object):
                 raise TypeError(
                         "All plotables should be of same type either rootpy Hist, Profile or Graph.")
             elif (self.type is not 'Graph') and (flat_list[0].compatible(item, True) is False):
-                raise TypeError(
+                raise ValueError(
                         "Number of bins and bin edges must be the same for every {0}".format(self.type))
             elif self.type is 'Graph':
                 check = False
@@ -122,12 +190,20 @@ class Compare(object):
         self.symkeys = self.symfunc.free_symbols
         self.keys = [int(str(key)[1:]) for key in self.symkeys]
         self.keys.sort()
-        if len(self.keys) > 0:
-            keytoclone = 'x'+str(self.keys[-1])
-        else:
-            keytoclone = self.plotables.keys()[-1]
-            log.warning(
+
+        if keytoclone is None:
+            if len(self.keys) > 0:
+                keytoclone = 'x'+str(self.keys[-1])
+            else:
+                keytoclone = self.plotables.keys()[-1]
+                log.warning(
                     "func has evaluated to constant, using style from {0} for resulting plotables".format(keytoclone))
+        elif not isinstance(keytoclone,str):
+            raise TypeError(
+                    "keytoclone must be of type string.")
+        elif keytoclone not in self.plotables.keys():
+            raise TypeError(
+                    "{0} is not found in the keys of input plotables.".format(keytoclone))
         self.keytoclone = keytoclone
 
         #Perform calculation
