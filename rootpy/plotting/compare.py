@@ -13,7 +13,6 @@ class Compare(object):
     """
 
     def __init__(self, plotables, func=None, errfunc=None):
-
         self.plotables = {}
         if not isinstance(plotables,dict):
             if not isinstance(plotables,list):
@@ -117,7 +116,7 @@ class Compare(object):
             self.errfunc = self.errfunc**0.5
 
         #List of output plotables
-        self.output = []
+        self.result = []
         #Resulting plotable will have the same style as input plotable with the
         #biggest N in xN keys of input plotables
         self.symkeys = self.symfunc.free_symbols
@@ -147,7 +146,7 @@ class Compare(object):
 
     def prepare_output(self):
         """
-        Determine all combination of input plotables and fill the output dict
+        Determine all combination of input plotables and fill the output list
         """
         self.combinations = list(self.product_dict(**self.plotables))
         for comb in self.combinations:
@@ -157,8 +156,13 @@ class Compare(object):
             log.info("Performing calculation of {0}...".format(name))
             result = comb[self.keytoclone].clone()
             result.name = name
+            #Add every plotable object in the given combination as a parents
+            #attribute of the given resulting object
+            result.parents = comb.values()
+            #Perform actual evaluation of func and errorfunc
             self.evaluate(comb,result)
-            self.output.append(result)
+            #Save result in the output list
+            self.result.append(result)
 
 
     def evaluate(self, comb, result):
@@ -197,3 +201,17 @@ class Compare(object):
                 point.y.error_low = self.errfunc.evalf(subs=subs_errfunc_low)
                 point.y.error_hi = self.errfunc.evalf(subs=subs_errfunc_hi)
 
+    def __getitem__(self, item):
+        """
+        Get list of all the resulting plotables for which h1 input was used
+        using calls like:
+
+            result[h1]
+
+        Multiple input objects cab be passed as a selection as well:
+
+            result[h1,h2,h3]
+        """
+        if isinstance(item,tuple) or isinstance(item,list):
+            return [obj for obj in self.result if set(item).issubset(set(obj.parents))]
+        return [obj for obj in self.result if item in obj.parents]
