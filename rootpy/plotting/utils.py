@@ -544,9 +544,10 @@ class Compare(object):
                 raise TypeError("Please pass at least a list of 2 plotables.")
             else:
                 log.info("Assigning first plotable in the list to x0, all others to x1")
-                self.plotables['x0'] = plotables[0]
+                self.plotables['x0'] = [plotables[0]]
+                self.plotables['x1'] = []
                 for item in plotables[1:]:
-                    self.plotables['x1'] = item
+                    self.plotables['x1'].append(item)
                 if func is not None or errfunc is not None:
                     raise RuntimeError(("Keys weren't assigned to plotables,"
                         " but function is explicitly provided.\n"
@@ -657,7 +658,7 @@ class Compare(object):
         #Resulting plotable will have the same style as input plotable with the
         #biggest N in xN keys of input plotables
         self.symkeys = self.symfunc.free_symbols
-        keys = [str(key) for k in self.symkeys]
+        keys = [str(key) for key in self.symkeys]
         self.keys = [int(re.findall(r"\d+",k)[0]) for k in keys]
         self.keys.sort()
 
@@ -720,6 +721,7 @@ class Compare(object):
             for i, ibin in enumerate(result):
                 subs_func = {}
                 subs_errfunc = {}
+
                 for key in self.symkeys:
                     if str(key)[0] != 'd':
                         subs_func[key] = comb[str(key)][i].value
@@ -730,13 +732,46 @@ class Compare(object):
                         subs_errfunc[key] = comb[str(key)][i].value
                     else:
                         subs_errfunc[key] = comb[str(key)[1:]][i].error
-                ibin.value = self.symfunc.evalf(subs=subs_func)
-                ibin.error = self.errfunc.evalf(subs=subs_errfunc)
+
+                #Following ROOT TH1:Divide() style, avoid throwing exception if
+                #denom is zero and fill the bin content with zero
+
+                #NOTE: Currently sympy.denom can not always determine actual
+                #denominator and returns 1, while whole expression stays in
+                #numerator. For time being we should completly ignore
+                #ZeroDivisionError all and set 0 as a bin content in these
+                #cases.
+
+                try:
+                    ibin.value = self.symfunc.evalf(subs=subs_func)
+                except ZeroDivisionError as e:
+                    ibin.value = 0
+                    #denom = self.sympy.denom(self.symfunc)
+                    #if denom.evalf(subs=subs_func) == 0:
+                        #ibin.value = 0
+                    #else:
+                        #raise e
+
+                try:
+                    ibin.error = self.errfunc.evalf(subs=subs_errfunc)
+                except ZeroDivisionError as e:
+                    ibin.error = 0
+                    #denom = self.sympy.denom(self.errfunc)
+                    #numer = self.sympy.numer(self.errfunc)
+                    #if denom.evalf(subs=subs_errfunc) == 0:
+                        #ibin.error = 0
+                    #else:
+                        #raise e
+
+            #Correct number of entries
+            result.entries = result.get_effective_entries()
+
         else:
             for i, point in enumerate(result):
                 subs_func = {}
                 subs_errfunc_hi = {}
                 subs_errfunc_low = {}
+
                 for key in self.symkeys:
                     if str(key)[0] != 'd':
                         subs_func[key] = comb[str(key)][i].y.value
@@ -751,9 +786,36 @@ class Compare(object):
                     else:
                         subs_errfunc_low[key] = comb[str(key)[1:]][i].y.error_low
                         subs_errfunc_hi[key] = comb[str(key)[1:]][i].y.error_hi
-                point.y.value = self.symfunc.evalf(subs=subs_func)
-                point.y.error_low = self.errfunc.evalf(subs=subs_errfunc_low)
-                point.y.error_hi = self.errfunc.evalf(subs=subs_errfunc_hi)
+
+                try:
+                    point.y.value = self.symfunc.evalf(subs=subs_func)
+                except ZeroDivisionError as e:
+                    point.y.value = 0
+                    #denom = self.sympy.denom(self.symfunc)
+                    #if denom.evalf(subs=subs_func) == 0:
+                        #point.y.value = 0
+                    #else:
+                        #raise e
+
+                try:
+                    point.y.error_low = self.errfunc.evalf(subs=subs_errfunc_low)
+                except ZeroDivisionError as e:
+                    point.y.error_low = 0
+                    #denom = self.sympy.denom(self.errfunc)
+                    #if denom.evalf(subs=subs_errfunc_low) == 0:
+                        #point.y.error_low = 0
+                    #else:
+                        #raise e
+
+                try:
+                    point.y.error_hi = self.errfunc.evalf(subs=subs_errfunc_hi)
+                except ZeroDivisionError as e:
+                    point.y.error_hi = 0
+                    #denom = self.sympy.denom(self.errfunc)
+                    #if denom.evalf(subs=subs_errfunc_hi) == 0:
+                        #point.y.error_hi = 0
+                    #else:
+                        #raise e
 
     def __getitem__(self, item):
         """
