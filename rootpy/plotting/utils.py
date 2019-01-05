@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import math
 import operator
 import re
-import sympy
 import itertools
 
 from .. import ROOT
@@ -525,6 +524,15 @@ class Compare(object):
     """
 
     def __init__(self, plotables, func=None, errfunc=None, keytoclone=None):
+        try:
+            import sympy
+        except ImportError:
+            raise ImportError((
+                    "`simpy` module can not be imported. Compare class depends"
+                    " on SymPy library, please install it and try again..."))
+        else:
+            self.sympy = sympy
+
         self.plotables = {}
         if not isinstance(plotables,dict):
             if not isinstance(plotables,list):
@@ -592,7 +600,7 @@ class Compare(object):
                         "Currently we support comparisons only for 1D plotable objects.")
         #End of object consistency checks
 
-        self.symfunc = sympy.sympify(self.func)
+        self.symfunc = self.sympy.sympify(self.func)
 
         for item in self.plotables:
             if re.match(r"x\d+", item) is None:
@@ -608,7 +616,7 @@ class Compare(object):
             self.errfunc = errfunc
 
         if self.errfunc is not None:
-            self.errfunc = sympy.sympify(self.errfunc)
+            self.errfunc = self.sympy.sympify(self.errfunc)
             for item in self.errfunc.free_symbols:
                 item = str(item)
                 if item[0] == 'd':
@@ -621,9 +629,9 @@ class Compare(object):
 
         else:
             #Calculate standard error from func, assuming variables are independent
-            self.errfunc = sympy.sympify(0)
+            self.errfunc = self.sympy.sympify(0)
             for item in self.symfunc.free_symbols:
-                d = (sympy.diff(self.symfunc,item)*sympy.var('d'+str(item)))**2
+                d = (self.sympy.diff(self.symfunc,item)*self.sympy.var('d'+str(item)))**2
                 self.errfunc += d
             self.errfunc = self.errfunc**0.5
 
