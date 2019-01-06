@@ -28,8 +28,8 @@ def test_Compare():
     comp_h12 = comp[h1,h2][0]
     comp_h13 = comp[h1,h3][0]
 
-    diff1 = [i for i in (h12-comp_h12) if i.value != 0]
-    diff2 = [i for i in (h13-comp_h13) if i.value != 0]
+    diff1 = [i for i in (h12-comp_h12) if round(i.value) != 0]
+    diff2 = [i for i in (h13-comp_h13) if round(i.value) != 0]
 
     assert_equal(len(diff1), 0)
     assert_equal(len(diff2), 0)
@@ -60,7 +60,7 @@ def test_Compare():
 
     comp_g12 = comp.results[0]
 
-    diff = [i for i in (g12-comp_g12) if i.y.value != 0]
+    diff = [i for i in (g12-comp_g12) if round(i.y.value) != 0]
 
     assert_equal(len(diff), 0)
     #End of graph checks
