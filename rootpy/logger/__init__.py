@@ -44,7 +44,7 @@ Example use:
 
     # Turn ROOT errors into exceptions
     from rootpy.logger.magic import DANGER
-    DANGER.enable = True
+    DANGER.enabled = True
 
     import ROOT
     ROOT.Error("test", "Test fatal")
